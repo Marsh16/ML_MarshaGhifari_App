@@ -1,6 +1,8 @@
 package com.example.healthsignal
 
+import android.content.Context
 import android.os.Bundle
+import org. tensorflow.lite.Interpreter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -41,17 +44,27 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.example.healthsignal.ml.DrinkingModelTf
+import com.example.healthsignal.ml.SmokingModelTf
 import com.example.healthsignal.ui.theme.Blue1
 import com.example.healthsignal.ui.theme.Green1
 import com.example.healthsignal.ui.theme.Green2
 import com.example.healthsignal.ui.theme.HealthSignalTheme
 import com.example.healthsignal.ui.theme.PoppinsFamily
 import com.example.healthsignal.ui.theme.Silver
+import org.tensorflow.lite.DataType
+import org.tensorflow.lite.support.model.Model
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class MainActivity : ComponentActivity() {
+//    private lateinit var tfliteManager: TFLiteManager
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()
+        // Initialize TFLiteManager
+//        tfliteManager = TFLiteManager(this)
         setContent {
             HealthSignalTheme {
                 // A surface container using the 'background' color from the theme
@@ -60,20 +73,25 @@ class MainActivity : ComponentActivity() {
                     color = Color.White
                 ) {
                     SplashScreen()
+//                    SplashScreen(tfliteManager)
                 }
             }
         }
     }
 }
-
+//tfliteManager: TFLiteManager,
 @Composable
 fun SplashScreen(modifier: Modifier = Modifier) {
+    var drinking = remember { mutableStateOf("") }
+    var smoking = remember { mutableStateOf("") }
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp, 22.dp, 16.dp, 6.dp)
             .verticalScroll(rememberScrollState()),
     ) {
+
         Row( modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically) {
@@ -100,15 +118,16 @@ fun SplashScreen(modifier: Modifier = Modifier) {
             color = Green1,
             modifier = Modifier.padding(16.dp, 0.dp),
         )
-        val drinker = "Yes"
-        val smoker = "Never Smoked"
         val properties = listOf(
             "Sex", "Age", "Height", "Weight", "Waistline",
             "Sight Left", "Sight Right", "Hear Left", "Hear Right",
             "SBP", "DBP", "BLDS", "Tot Cholesterol", "HDL Cholesterol",
             "LDL Cholesterol", "Triglyceride", "Hemoglobin", "Urine Protein",
             "Serum Creatinine", "SGOT AST", "SGOT ALT", "Gamma GTP", "BMI",
-            "BMI Category", "MAP", "Liver Enzyme Ratio", "Anemia Indicator"
+                    "BMI Category",
+                    "MAP",
+                    "Liver Enzyme_Ratio",
+                    "Anemia Indicator"
         )
 
         val propertyStates: Map<String, MutableState<String>> = remember {
@@ -129,12 +148,22 @@ fun SplashScreen(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = {
-                    val values: Map<String, String> = propertyStates.mapValues { it.value.value }
-
-// Now 'values' contains the current values for each property
-                    for ((property, value) in values) {
-                        println("$property: $value")
+                    println("Drinking Prediction: ${drinking.value}")
+                    println("Smoking Prediction: ${smoking.value}")
+                    // Get values from your input fields or states
+                    val values: Map<String, String> = properties.associateWith { property ->
+                        propertyStates[property]?.value.orEmpty()
                     }
+                    println("values: ${values}")
+                    println("values: ${values.values.map { it.toFloat() }.toFloatArray()}")
+                    // Use the TFLiteManager to make predictions
+                    val tfliteManager = TFLiteManager(context)
+                    drinking.value = tfliteManager.makePredictionsDrinking(values)
+                    smoking.value = tfliteManager.makePredictionsSmoking(values)
+
+                    // Log predictions
+                    println("Drinking Prediction: ${drinking.value}")
+                    println("Smoking Prediction: ${smoking.value}")
                 },
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Green1),
@@ -163,7 +192,7 @@ fun SplashScreen(modifier: Modifier = Modifier) {
                     fontFamily = PoppinsFamily,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Text(text = "Prediction: $drinker",
+                Text(text = "Prediction: ${drinking.value}",
                     color = Color.Black,
                     fontSize = 16.sp,
                     fontFamily = PoppinsFamily,
@@ -181,7 +210,7 @@ fun SplashScreen(modifier: Modifier = Modifier) {
                     fontFamily = PoppinsFamily,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Text(text = "Prediction: $smoker",
+                Text(text = "Prediction: ${smoking.value}",
                     color = Color.Black,
                     fontSize = 16.sp,
                     fontFamily = PoppinsFamily,
@@ -191,6 +220,103 @@ fun SplashScreen(modifier: Modifier = Modifier) {
         }
     }
 }
+class TFLiteManager(private val context: Context) {
+    fun makePredictionsDrinking(values: Map<String, String>): String {
+        try {
+            val model = DrinkingModelTf.newInstance(context)
+//            val inputTensorShape = intArrayOf(1, 27)
+//
+//            // Replace the following with your actual input data
+//val inputFloatArray: FloatArray = values.values.map { it.toFloatOrNull() ?: 0.0f }.toFloatArray()
+//
+//            // Check if the size of the inputFloatArray matches the expected size
+//            if (inputFloatArray.size != inputTensorShape[1]) {
+//                println("Error: Input size mismatch. Expected size: ${inputTensorShape[1]}, Actual size: ${inputFloatArray.size}")
+//                return "Drinker Prediction: -"
+//            }
+//
+//            val inputFeature0 = TensorBuffer.createFixedSize(inputTensorShape, DataType.FLOAT32)
+//            val byteBuffer = ByteBuffer.allocateDirect(inputFloatArray.size * 4)
+//            byteBuffer.order(ByteOrder.nativeOrder())
+//            for (value in inputFloatArray) {
+//                byteBuffer.putFloat(value)
+//            }
+//            inputFeature0.loadBuffer(byteBuffer)
+            val inputTensorShape = intArrayOf(1, 27)
+            val inputFeature0 = TensorBuffer.createFixedSize(inputTensorShape, DataType.FLOAT32)
+
+// Replace the following with your actual input data
+            val inputFloatArray: FloatArray =  values.values.map { it.toFloatOrNull() ?: 0.0f }.toFloatArray()
+print("Error during drinker: $inputFloatArray.values")
+            if (inputFloatArray.size != inputTensorShape[1]) {
+                println("Error: Input size mismatch. Expected size: ${inputTensorShape[1]}, Actual size: ${inputFloatArray.size}")
+                return "Drinker Prediction: -"
+            }
+// Load the input data into the TensorBuffer
+                inputFeature0.loadArray(inputFloatArray, inputTensorShape)
+
+
+            val outputs = model.process(inputFeature0)
+            val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+            model.close()
+
+            // Process the outputFeature0 and return the prediction as a String
+            return "Drinker Prediction: ${outputFeature0.getFloatValue(0)}"
+        } catch (e: Exception) {
+            println("Error during inference: $e")
+        }
+
+        return "-"
+    }
+
+    fun makePredictionsSmoking(values: Map<String, String>): String {
+        try {
+            val model = SmokingModelTf.newInstance(context)
+            val inputTensorShape = intArrayOf(1, 27)
+
+//            // Replace the following with your actual input data
+//            val inputFloatArray: FloatArray = values.values.map { it.toFloatOrNull() ?: 0.0f }.toFloatArray()
+//
+//            // Check if the size of the inputFloatArray matches the expected size
+//            if (inputFloatArray.size != inputTensorShape[1]) {
+//                println("Error: Input size mismatch. Expected size: ${inputTensorShape[1]}, Actual size: ${inputFloatArray.size}")
+//                return "Smoker Prediction: -"
+//            }
+//
+//            val inputFeature0 = TensorBuffer.createFixedSize(inputTensorShape, DataType.FLOAT32)
+//            val byteBuffer = ByteBuffer.allocateDirect(inputFloatArray.size * 4)
+//            byteBuffer.order(ByteOrder.nativeOrder())
+//            for (value in inputFloatArray) {
+//                byteBuffer.putFloat(value)
+//            }
+//            inputFeature0.loadBuffer(byteBuffer)
+            val inputFeature0 = TensorBuffer.createFixedSize(inputTensorShape, DataType.FLOAT32)
+            print("Error during smoker1: $inputFeature0")
+// Replace the following with your actual input data
+            val inputFloatArray: FloatArray =  values.values.map { it.toFloatOrNull() ?: 0.0f }.toFloatArray()
+            print("Error during smoker: $inputFloatArray")
+            if (inputFloatArray.size != inputTensorShape[1]) {
+                println("Error: Input size mismatch. Expected size: ${inputTensorShape[1]}, Actual size: ${inputFloatArray.size}")
+                return "Drinker Prediction: -"
+            }
+// Load the input data into the TensorBuffer
+            inputFeature0.loadArray(inputFloatArray, inputTensorShape)
+
+
+            val outputs = model.process(inputFeature0)
+            val outputFeature0 = outputs.outputFeature0AsTensorBuffer
+            model.close()
+
+            // Process the outputFeature0 and return the prediction as a String
+            return "Smoker Prediction: ${outputFeature0.getFloatValue(0)}"
+        } catch (e: Exception) {
+            println("Error during inference: $e")
+        }
+
+        return "-"
+    }
+}
+
 
 @Composable
 fun healthInfoTextField(label: String, textState: MutableState<String>){
@@ -205,12 +331,16 @@ fun healthInfoTextField(label: String, textState: MutableState<String>){
         modifier = Modifier.fillMaxWidth()
     )
 }
-
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
+    // Assuming you are using the default PreviewConfiguration
+//    val context = LocalContext.current
+//    val tfliteManager = remember { TFLiteManager(context) }
+
     HealthSignalTheme {
         SplashScreen()
     }
 }
+
 
