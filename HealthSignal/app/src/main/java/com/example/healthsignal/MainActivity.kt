@@ -130,6 +130,13 @@ fun SplashScreen(modifier: Modifier = Modifier) {
                     "Anemia Indicator"
         )
 
+//        val properties2 = listOf(
+//            "sex", "age", "height", "weight", "waistline", "sight_left", "sight_right",
+//            "hear_left", "hear_right", 'SBP', 'DBP', 'BLDS', 'tot_chole', 'HDL_chole',
+//            'LDL_chole', 'triglyceride', 'hemoglobin', 'urine_protein', 'serum_creatinine',
+//            'SGOT_AST', 'SGOT_ALT', 'gamma_GTP', 'BMI', 'BMI_Category', 'MAP', 'Liver_Enzyme_Ratio', 'Anemia_Indicator'
+//        )
+
         val propertyStates: Map<String, MutableState<String>> = remember {
             properties.associateWith { property ->
                 mutableStateOf("")
