@@ -18,7 +18,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.healthsignal.ui.theme.Green1
 import com.example.healthsignal.ui.theme.HealthSignalTheme
 import com.example.healthsignal.ui.theme.PoppinsFamily
-
 import android.os.Bundle
 import android.content.Context
 import android.util.Log
@@ -26,13 +25,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,13 +46,11 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-var drinking by mutableStateOf("")
-var smoking by mutableStateOf("")
-
 @Composable
 fun SplashScreen() {
     var drinking by remember { mutableStateOf("") }
     var smoking by remember { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("Male") }
     val context = LocalContext.current
     val properties = listOf(
         "Sex", "Age", "Height", "Waistline",
@@ -107,12 +108,21 @@ fun SplashScreen() {
             modifier = Modifier.padding(16.dp, 0.dp),
         )
 
-        // Text Fields
         Column(modifier = Modifier.padding(16.dp)) {
             for (property in properties) {
-                healthInfoTextField(property, propertyStates[property]!!)
+                val (textState, value) = healthInfoTextField(
+                    label = property,
+                    textState = propertyStates[property]!!,
+                    categories = listOf("Male", "Female"),
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { category ->
+                        selectedCategory = category // Update the value property
+                    }
+                )
             }
         }
+
+
 
         // Predict Button
         Row(
@@ -125,6 +135,7 @@ fun SplashScreen() {
             Button(
                 onClick = {
                     // Get values from your input fields or states
+
                     val values: Map<String, String> = properties.associateWith { property ->
                         propertyStates[property]?.value.orEmpty()
                     }
@@ -310,42 +321,85 @@ class TFLiteManager(private val context: Context) {
 
 
 @Composable
-fun healthInfoTextField(label: String, textState: MutableState<String>) {
+fun healthInfoTextField(
+    label: String,
+    textState: MutableState<String>,
+    categories: List<String>,
+    selectedCategory: String, // Use MutableState<String> for tracking selected category
+    onCategorySelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+): Pair<MutableState<String>, String> {
+    var sex by remember { mutableStateOf(0) }
+
     if (label == "Sex") {
         // Dropdown for Sex
         var expanded by remember { mutableStateOf(false) }
-
-        OutlinedTextField(
-            value = textState.value,
-            onValueChange = {
-                textState.value = it
-            },
-            label = {
-                Text(text = "Sex (Male or Female)")
-            },
-            modifier = Modifier
+        val onCategorySelectedState by rememberUpdatedState(onCategorySelected)
+        Box(
+            modifier = modifier
                 .fillMaxWidth()
-                .clickable { expanded = true }
-        )
-    }
-    else {
+                .clickable { expanded = !expanded }
+                .background(color = Color.White, shape = RoundedCornerShape(16.dp))
+                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                .padding(vertical = 3.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selectedCategory,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+
+            if (expanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                ) {
+                    Column {
+                        categories.forEach { category ->
+                            Text(
+                                text = category,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        expanded = false
+                                        onCategorySelectedState(category)
+                                        sex = if (category == "Male") 0 else 1
+                                        textState.value = sex.toString() // Update textState with encoded value
+                                    }
+                                    .padding(16.dp)
+                            )
+                            Divider(color = Color.Gray, thickness = 1.dp)
+                        }
+                    }
+                }
+            }
+        }
+        return textState to sex.toString()
+    } else {
         // Normal TextField for other properties
         OutlinedTextField(
             value = textState.value,
             onValueChange = {
                 textState.value = it
+                // Optionally, you can perform additional actions here if needed
             },
-            label = {
-                Text(text = label)
-            },
+            label = { Text(text = label) },
             modifier = Modifier.fillMaxWidth()
         )
+        return textState to textState.value
     }
 }
 
-fun DropdownMenuItem(onClick: () -> Unit, interactionSource: () -> Unit) {
-
-}
 
 
 @Preview(showBackground = true)
