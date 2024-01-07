@@ -89,7 +89,6 @@ class TFLiteManager3(private val context: Context) {
 
             offset += 4
         }
-
         return inputArray
     }
 }
