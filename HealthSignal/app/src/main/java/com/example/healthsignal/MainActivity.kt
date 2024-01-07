@@ -18,7 +18,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.healthsignal.ui.theme.Green1
 import com.example.healthsignal.ui.theme.HealthSignalTheme
 import com.example.healthsignal.ui.theme.PoppinsFamily
-
 import android.os.Bundle
 import android.content.Context
 import android.util.Log
@@ -26,13 +25,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,19 +45,16 @@ import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.Locale
-
-var drinking by mutableStateOf("")
-var smoking by mutableStateOf("")
 
 @Composable
 fun SplashScreen() {
     var drinking by remember { mutableStateOf("") }
     var smoking by remember { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("Male") }
     val context = LocalContext.current
     val properties = listOf(
         "Sex", "Age", "Height", "Waistline",
-        "Sight Left (minus)", "Sight Right (minus)", "Hear Left", "Hear Right",
+        "Sight Left", "Sight Right", "Hear Left", "Hear Right",
         "SBP", "DBP", "BLDS", "Tot Cholesterol", "HDL Cholesterol",
         "LDL Cholesterol", "Urine Protein",
         "Serum Creatinine", "SGOT AST", "SGOT ALT", "Gamma GTP"
@@ -108,12 +108,21 @@ fun SplashScreen() {
             modifier = Modifier.padding(16.dp, 0.dp),
         )
 
-        // Text Fields
         Column(modifier = Modifier.padding(16.dp)) {
             for (property in properties) {
-                healthInfoTextField(property, propertyStates[property]!!)
+                healthInfoTextField(
+                    label = property,
+                    textState = propertyStates[property]!!,
+                    categories = listOf("Male", "Female"),
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { category ->
+                        selectedCategory = category // Update the value property
+                    }
+                )
             }
         }
+
+
 
         // Predict Button
         Row(
@@ -126,40 +135,18 @@ fun SplashScreen() {
             Button(
                 onClick = {
                     // Get values from your input fields or states
-                    var values: Map<String, String> = properties.associateWith { property ->
+
+                    val values: Map<String, String> = properties.associateWith { property ->
                         propertyStates[property]?.value.orEmpty()
                     }
-
-                    val sexValue = when (values["Sex"]?.lowercase(Locale.ROOT)) {
-                        "male" -> "0"
-                        "female" -> "1"
-                        else -> ""
-                    }
-
-                    val hearlValue = when (values["Hear Left"]?.lowercase(Locale.ROOT)) {
-                        "able" -> "1"
-                        "not able" -> "2"
-                        else -> ""
-                    }
-
-                    val hearrValue = when (values["Hear Right"]?.lowercase(Locale.ROOT)) {
-                        "able" -> "1"
-                        "not able" -> "2"
-                        else -> ""
-                    }
-
-                    values = values + ("Sex" to sexValue) + ("Hear Left" to hearlValue) + ("Hear Right" to hearrValue)
-
                     Log.d("InputValues", values.toString())
-
                     // Use the TFLiteManager to make predictions
                     val tfliteManager = TFLiteManager(context)
-                    val drinkingPrediction = tfliteManager.makePredictionsDrinking(values)
-                    val smokingPrediction = tfliteManager.makePredictionsSmoking(values)
+                    drinking = tfliteManager.makePredictionsDrinking(values).toString()
+                    smoking = tfliteManager.makePredictionsSmoking(values).toString()
 
-                    // Set the new values based on predictions
-                    drinking = if (drinkingPrediction == 1) "Yes" else "No"
-                    smoking = when (smokingPrediction) {
+                    drinking = if(drinking.toInt() == 1) "Yes" else "No"
+                    smoking = when (smoking.toInt()) {
                         0 -> "Never smoked"
                         1 -> "Used to smoke"
                         2 -> "Still smoking"
@@ -169,8 +156,7 @@ fun SplashScreen() {
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Green1),
                 modifier = Modifier.fillMaxWidth()
-            )
- {
+            ) {
                 Text(
                     text = "Predict",
                     color = Color.White,
@@ -335,72 +321,86 @@ class TFLiteManager(private val context: Context) {
 
 
 @Composable
-fun healthInfoTextField(label: String, textState: MutableState<String>) {
+fun healthInfoTextField(
+    label: String,
+    textState: MutableState<String>,
+    categories: List<String>,
+    selectedCategory: String, // Use MutableState<String> for tracking selected category
+    onCategorySelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+): Pair<MutableState<String>, String> {
+    var sex by remember { mutableStateOf(0) }
+
     if (label == "Sex") {
         // Dropdown for Sex
         var expanded by remember { mutableStateOf(false) }
-
-        OutlinedTextField(
-            value = textState.value,
-            onValueChange = {
-                textState.value = it
-            },
-            label = {
-                Text(text = "Sex (Male or Female)")
-            },
-            modifier = Modifier
+        val onCategorySelectedState by rememberUpdatedState(onCategorySelected)
+        Box(
+            modifier = modifier
                 .fillMaxWidth()
-                .clickable { expanded = true }
-        )
-    }
-    else if (label == "Hear Left") {
-        // Dropdown for Sex
-        var expanded by remember { mutableStateOf(false) }
+                .clickable { expanded = !expanded }
+                .background(color = Color.White, shape = RoundedCornerShape(16.dp))
+                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                .padding(vertical = 3.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selectedCategory,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+            }
 
-        OutlinedTextField(
-            value = textState.value,
-            onValueChange = {
-                textState.value = it
-            },
-            label = {
-                Text(text = "Hear Left (able/not able")
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-        )
-    }
-    else if (label == "Hear Right") {
-        // Dropdown for Sex
-        var expanded by remember { mutableStateOf(false) }
-
-        OutlinedTextField(
-            value = textState.value,
-            onValueChange = {
-                textState.value = it
-            },
-            label = {
-                Text(text = "Hear Right (able/not able)")
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-        )
-    }
-    else {
+            if (expanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                ) {
+                    Column {
+                        categories.forEach { category ->
+                            Text(
+                                text = category,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        expanded = false
+                                        onCategorySelectedState(category)
+                                        sex = if (category == "Male") 0 else 1
+                                        textState.value = sex.toString() // Update textState with encoded value
+                                    }
+                                    .padding(16.dp)
+                            )
+                            Divider(color = Color.Gray, thickness = 1.dp)
+                        }
+                    }
+                }
+            }
+        }
+        return textState to sex.toString()
+    } else {
         // Normal TextField for other properties
         OutlinedTextField(
             value = textState.value,
             onValueChange = {
                 textState.value = it
+                // Optionally, you can perform additional actions here if needed
             },
-            label = {
-                Text(text = label)
-            },
+            label = { Text(text = label) },
             modifier = Modifier.fillMaxWidth()
         )
+        return textState to textState.value
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
