@@ -110,7 +110,7 @@ fun SplashScreen() {
 
         Column(modifier = Modifier.padding(16.dp)) {
             for (property in properties) {
-                val (textState, value) = healthInfoTextField(
+                healthInfoTextField(
                     label = property,
                     textState = propertyStates[property]!!,
                     categories = listOf("Male", "Female"),
