@@ -50,7 +50,10 @@ import java.nio.ByteOrder
 fun SplashScreen() {
     var drinking by remember { mutableStateOf("") }
     var smoking by remember { mutableStateOf("") }
-    var selectedCategory by rememberSaveable { mutableStateOf("Male") }
+    var selectedsexCategory by rememberSaveable { mutableStateOf("Male") }
+    var selectedhearlCategory by rememberSaveable { mutableStateOf("Normal") }
+    var selectedhearrCategory by rememberSaveable { mutableStateOf("Normal") }
+
     val context = LocalContext.current
     val properties = listOf(
         "Sex", "Age", "Height", "Waistline",
@@ -114,9 +117,18 @@ fun SplashScreen() {
                     label = property,
                     textState = propertyStates[property]!!,
                     categories = listOf("Male", "Female"),
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { category ->
-                        selectedCategory = category // Update the value property
+                    categorieshear = listOf("Normal", "Abnormal"),
+                    selectedsexCategory = selectedsexCategory,
+                    selectedhearlCategory = selectedhearlCategory,
+                    selectedhearrCategory = selectedhearrCategory,
+                    onCategorysexSelected = { category ->
+                        selectedsexCategory = category // Update the value property
+                    },
+                    onCategoryhearlSelected = { category ->
+                        selectedhearlCategory = category // Update the value property
+                    },
+                    onCategoryhearrSelected = { category ->
+                        selectedhearrCategory = category // Update the value property
                     }
                 )
             }
@@ -325,16 +337,24 @@ fun healthInfoTextField(
     label: String,
     textState: MutableState<String>,
     categories: List<String>,
-    selectedCategory: String, // Use MutableState<String> for tracking selected category
-    onCategorySelected: (String) -> Unit,
+    categorieshear: List<String>,
+    selectedsexCategory: String, // Use MutableState<String> for tracking selected category
+    onCategorysexSelected: (String) -> Unit,
+    selectedhearlCategory: String, // Use MutableState<String> for tracking selected category
+    onCategoryhearlSelected: (String) -> Unit,
+    selectedhearrCategory: String, // Use MutableState<String> for tracking selected category
+    onCategoryhearrSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ): Pair<MutableState<String>, String> {
     var sex by remember { mutableStateOf(0) }
+    var hearl by remember { mutableStateOf(1) }
+    var hearr by remember { mutableStateOf(1) }
+
 
     if (label == "Sex") {
         // Dropdown for Sex
         var expanded by remember { mutableStateOf(false) }
-        val onCategorySelectedState by rememberUpdatedState(onCategorySelected)
+        val onCategorySelectedState by rememberUpdatedState(onCategorysexSelected)
         Box(
             modifier = modifier
                 .fillMaxWidth()
@@ -351,7 +371,7 @@ fun healthInfoTextField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = selectedCategory,
+                    text = "$label = $selectedsexCategory",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -385,7 +405,116 @@ fun healthInfoTextField(
             }
         }
         return textState to sex.toString()
-    } else {
+    } else if (label == "Hear Left") {
+        // Dropdown for Sex
+        var expanded by remember { mutableStateOf(false) }
+        val onCategorySelectedState by rememberUpdatedState(onCategoryhearlSelected)
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .background(color = Color.White, shape = RoundedCornerShape(16.dp))
+                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                .padding(vertical = 3.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$label = $selectedhearlCategory",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+
+            if (expanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                ) {
+                    Column {
+                        categorieshear.forEach { category ->
+                            Text(
+                                text = category,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        expanded = false
+                                        onCategorySelectedState(category)
+                                        hearl = if (category == "Normal") 1 else 2
+                                        textState.value = hearl.toString() // Update textState with encoded value
+                                    }
+                                    .padding(16.dp)
+                            )
+                            Divider(color = Color.Gray, thickness = 1.dp)
+                        }
+                    }
+                }
+            }
+        }
+        return textState to hearl.toString()
+    }
+    else if (label == "Hear Right") {
+        // Dropdown for Sex
+        var expanded by remember { mutableStateOf(false) }
+        val onCategorySelectedState by rememberUpdatedState(onCategoryhearrSelected)
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .background(color = Color.White, shape = RoundedCornerShape(16.dp))
+                .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                .padding(vertical = 3.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$label = $selectedhearrCategory",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+
+            if (expanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(16.dp))
+                ) {
+                    Column {
+                        categorieshear.forEach { category ->
+                            Text(
+                                text = category,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        expanded = false
+                                        onCategorySelectedState(category)
+                                        hearr = if (category == "Normal") 1 else 2
+                                        textState.value = hearr.toString() // Update textState with encoded value
+                                    }
+                                    .padding(16.dp)
+                            )
+                            Divider(color = Color.Gray, thickness = 1.dp)
+                        }
+                    }
+                }
+            }
+        }
+        return textState to hearr.toString()
+    }else {
         // Normal TextField for other properties
         OutlinedTextField(
             value = textState.value,
@@ -399,7 +528,6 @@ fun healthInfoTextField(
         return textState to textState.value
     }
 }
-
 
 
 @Preview(showBackground = true)
