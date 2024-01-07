@@ -42,6 +42,7 @@ import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
 
 var drinking by mutableStateOf("")
 var smoking by mutableStateOf("")
@@ -53,7 +54,7 @@ fun SplashScreen() {
     val context = LocalContext.current
     val properties = listOf(
         "Sex", "Age", "Height", "Waistline",
-        "Sight Left", "Sight Right", "Hear Left", "Hear Right",
+        "Sight Left (minus)", "Sight Right (minus)", "Hear Left", "Hear Right",
         "SBP", "DBP", "BLDS", "Tot Cholesterol", "HDL Cholesterol",
         "LDL Cholesterol", "Urine Protein",
         "Serum Creatinine", "SGOT AST", "SGOT ALT", "Gamma GTP"
@@ -125,17 +126,40 @@ fun SplashScreen() {
             Button(
                 onClick = {
                     // Get values from your input fields or states
-                    val values: Map<String, String> = properties.associateWith { property ->
+                    var values: Map<String, String> = properties.associateWith { property ->
                         propertyStates[property]?.value.orEmpty()
                     }
+
+                    val sexValue = when (values["Sex"]?.lowercase(Locale.ROOT)) {
+                        "male" -> "0"
+                        "female" -> "1"
+                        else -> ""
+                    }
+
+                    val hearlValue = when (values["Hear Left"]?.lowercase(Locale.ROOT)) {
+                        "able" -> "1"
+                        "not able" -> "2"
+                        else -> ""
+                    }
+
+                    val hearrValue = when (values["Hear Right"]?.lowercase(Locale.ROOT)) {
+                        "able" -> "1"
+                        "not able" -> "2"
+                        else -> ""
+                    }
+
+                    values = values + ("Sex" to sexValue) + ("Hear Left" to hearlValue) + ("Hear Right" to hearrValue)
+
                     Log.d("InputValues", values.toString())
+
                     // Use the TFLiteManager to make predictions
                     val tfliteManager = TFLiteManager(context)
-                    drinking = tfliteManager.makePredictionsDrinking(values).toString()
-                    smoking = tfliteManager.makePredictionsSmoking(values).toString()
+                    val drinkingPrediction = tfliteManager.makePredictionsDrinking(values)
+                    val smokingPrediction = tfliteManager.makePredictionsSmoking(values)
 
-                    drinking = if(drinking.toInt() == 1) "Yes" else "No"
-                    smoking = when (smoking.toInt()) {
+                    // Set the new values based on predictions
+                    drinking = if (drinkingPrediction == 1) "Yes" else "No"
+                    smoking = when (smokingPrediction) {
                         0 -> "Never smoked"
                         1 -> "Used to smoke"
                         2 -> "Still smoking"
@@ -145,7 +169,8 @@ fun SplashScreen() {
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Green1),
                 modifier = Modifier.fillMaxWidth()
-            ) {
+            )
+ {
                 Text(
                     text = "Predict",
                     color = Color.White,
@@ -328,6 +353,40 @@ fun healthInfoTextField(label: String, textState: MutableState<String>) {
                 .clickable { expanded = true }
         )
     }
+    else if (label == "Hear Left") {
+        // Dropdown for Sex
+        var expanded by remember { mutableStateOf(false) }
+
+        OutlinedTextField(
+            value = textState.value,
+            onValueChange = {
+                textState.value = it
+            },
+            label = {
+                Text(text = "Hear Left (able/not able")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+        )
+    }
+    else if (label == "Hear Right") {
+        // Dropdown for Sex
+        var expanded by remember { mutableStateOf(false) }
+
+        OutlinedTextField(
+            value = textState.value,
+            onValueChange = {
+                textState.value = it
+            },
+            label = {
+                Text(text = "Hear Right (able/not able)")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+        )
+    }
     else {
         // Normal TextField for other properties
         OutlinedTextField(
@@ -342,11 +401,6 @@ fun healthInfoTextField(label: String, textState: MutableState<String>) {
         )
     }
 }
-
-fun DropdownMenuItem(onClick: () -> Unit, interactionSource: () -> Unit) {
-
-}
-
 
 @Preview(showBackground = true)
 @Composable
