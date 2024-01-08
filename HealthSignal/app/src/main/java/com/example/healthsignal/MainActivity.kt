@@ -371,7 +371,7 @@ fun healthInfoTextField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$label = $selectedsexCategory",
+                    text = selectedsexCategory,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -425,7 +425,7 @@ fun healthInfoTextField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$label = $selectedhearlCategory",
+                    text = selectedhearlCategory,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -480,7 +480,7 @@ fun healthInfoTextField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$label = $selectedhearrCategory",
+                    text = selectedhearrCategory,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
